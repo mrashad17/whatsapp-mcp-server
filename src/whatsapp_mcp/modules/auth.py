@@ -1,5 +1,6 @@
 """Authentication module for WhatsApp MCP Server."""
 
+import asyncio
 import logging
 import os
 from typing import Dict, Tuple, Any
@@ -40,12 +41,31 @@ class WhatsAppClient:
                 )
                 return False
 
-            self.client = GreenApi(
+            client = GreenApi(
                 idInstance=id_instance, apiTokenInstance=api_token_instance
             )
+
+            # Check the credentials and the instance state before reporting
+            # success. Previously any value "worked" until the first send failed.
+            response = await asyncio.to_thread(client.account.getStateInstance)
+            if getattr(response, "code", None) != 200:
+                logger.error(
+                    "GreenAPI rejected the credentials (HTTP %s)",
+                    getattr(response, "code", None),
+                )
+                return False
+            self.state = (response.data or {}).get("stateInstance", "unknown")
+            if self.state != "authorized":
+                logger.error("GreenAPI instance is not ready: %s", self.state)
+                return False
+
+            self.client = client
+            self.is_authenticated = True
             return True
         except Exception as e:
-            logger.error(f"Failed to initialize WhatsApp client: {e}")
+            # Exception text can include the request URL, which contains the
+            # API token, so only the exception type is logged.
+            logger.error("Failed to initialize WhatsApp client: %s", type(e).__name__)
             return False
 
 
@@ -65,9 +85,12 @@ class AuthManager:
 
         if success:
             self.session = client
-            return True, "Session created successfully"
+            return True, "Session created successfully (GreenAPI instance authorized)"
 
-        return False, "Failed to create session"
+        return False, (
+            "Failed to create session: check GREENAPI_ID_INSTANCE and "
+            f"GREENAPI_API_TOKEN, and that the instance is authorized (state: {client.state})"
+        )
 
     def is_authenticated(self) -> bool:
         """Check if a session is authenticated."""

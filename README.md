@@ -1,5 +1,14 @@
 # WhatsApp MCP Server
 
+> **Fork notes (mrashad17):** this fork fixes problems found in a review of upstream.
+> - `get_chats` now returns real contacts and groups from GreenAPI `getContacts`. Upstream returned two hardcoded fake chats ("John Doe", "Family Group").
+> - The group tools now call the GreenAPI methods that actually exist (`createGroup`, `getGroupData`, `addGroupParticipant`, `removeGroupParticipant`, `updateGroupName`).
+> - `open_session` checks the credentials with `getStateInstance` and only succeeds when the instance is `authorized`.
+> - Phone numbers are validated (7-15 digits) and message text is no longer logged.
+> - Unused Pillow was removed and the locked dependencies were upgraded (`pip-audit`: no known vulnerabilities). The MCP SDK is pinned below 2.0, because 2.x renamed `FastMCP`.
+> - Tests now check the calls against the real GreenAPI client (34 tests).
+
+
 A server that provides a Model Context Protocol (MCP) interface to interact with WhatsApp Business API using FastMCP.
 
 ## Introduction
